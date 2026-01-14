@@ -1,0 +1,198 @@
+-- Auto Infect FINAL PRO (FAST + GUI FIX)
+-- Script made by muzascript
+
+repeat task.wait() until game:IsLoaded()
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+
+local player = Players.LocalPlayer
+local enabled = false
+local conn
+local lockedTarget
+
+-- ===== NOTIFICATION =====
+pcall(function()
+	StarterGui:SetCore("SendNotification",{
+		Title = "muzascript",
+		Text = "Auto Infect Final Pro Loaded\nmade by muzascript",
+		Duration = 4
+	})
+end)
+
+-- ===== CHARACTER =====
+local function char()
+	return player.Character or player.CharacterAdded:Wait()
+end
+
+local function hrp()
+	return char():WaitForChild("HumanoidRootPart")
+end
+
+-- ===== TARGET SYSTEM =====
+local function validTarget(t)
+	if not t or not t.Parent then return false end
+	local p = Players:GetPlayerFromCharacter(t.Parent)
+	if not p then return false end
+	if p.Team == player.Team then return false end
+	return (hrp().Position - t.Position).Magnitude < 80
+end
+
+local function findTarget()
+	local my = hrp()
+	local best,dist = nil,math.huge
+	for _,plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player
+		and plr.Team ~= player.Team
+		and plr.Character
+		and plr.Character:FindFirstChild("HumanoidRootPart") then
+			local t = plr.Character.HumanoidRootPart
+			local d = (my.Position - t.Position).Magnitude
+			if d < dist then
+				dist = d
+				best = t
+			end
+		end
+	end
+	return best
+end
+
+-- ===== BODY CONTROL =====
+local gyro,vel
+local function enableBody()
+	gyro = Instance.new("BodyGyro", hrp())
+	gyro.MaxTorque = Vector3.new(0,9e9,0)
+	gyro.P = 6000
+
+	vel = Instance.new("BodyVelocity", hrp())
+	vel.MaxForce = Vector3.new(9e9,0,9e9)
+end
+
+local function disableBody()
+	if gyro then gyro:Destroy() end
+	if vel then vel:Destroy() end
+	gyro,vel=nil,nil
+end
+
+-- ===== GUI =====
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "muzascript_autoinfect"
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0,210,0,95)
+frame.Position = UDim2.new(0.35,0,0.6,0)
+frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+frame.Active = true
+frame.Draggable = true
+frame.BorderSizePixel = 0
+
+-- TITLE BAR
+local titleBar = Instance.new("Frame", frame)
+titleBar.Size = UDim2.new(1,0,0,25)
+titleBar.BackgroundColor3 = Color3.fromRGB(35,35,35)
+titleBar.BorderSizePixel = 0
+
+local title = Instance.new("TextLabel", titleBar)
+title.Size = UDim2.new(1,-50,1,0)
+title.Text = "Auto Infect Final Pro"
+title.TextColor3 = Color3.new(1,1,1)
+title.TextScaled = true
+title.BackgroundTransparency = 1
+
+-- MINIMIZE
+local minBtn = Instance.new("TextButton", titleBar)
+minBtn.Size = UDim2.new(0,25,1,0)
+minBtn.Position = UDim2.new(1,-50,0,0)
+minBtn.Text = "_"
+minBtn.TextScaled = true
+minBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+minBtn.TextColor3 = Color3.new(1,1,1)
+
+-- CLOSE
+local closeBtn = Instance.new("TextButton", titleBar)
+closeBtn.Size = UDim2.new(0,25,1,0)
+closeBtn.Position = UDim2.new(1,-25,0,0)
+closeBtn.Text = "X"
+closeBtn.TextScaled = true
+closeBtn.BackgroundColor3 = Color3.fromRGB(120,0,0)
+closeBtn.TextColor3 = Color3.new(1,1,1)
+
+-- BUTTON
+local btn = Instance.new("TextButton", frame)
+btn.Size = UDim2.new(1,-10,0,32)
+btn.Position = UDim2.new(0,5,0,30)
+btn.Text = "👁️ OFF"
+btn.TextScaled = true
+btn.BackgroundColor3 = Color3.fromRGB(55,55,55)
+btn.TextColor3 = Color3.new(1,1,1)
+
+-- CREDIT (MENYATU & JELAS)
+local credit = Instance.new("TextLabel", frame)
+credit.Size = UDim2.new(1,0,0,20)
+credit.Position = UDim2.new(0,0,1,-20)
+credit.Text = "made by muzascript"
+credit.TextColor3 = Color3.fromRGB(0,255,120)
+credit.TextScaled = true
+credit.BackgroundTransparency = 1
+
+-- ===== CORE =====
+btn.MouseButton1Click:Connect(function()
+	enabled = not enabled
+	btn.Text = enabled and "👁️ ON" or "👁️ OFF"
+
+	if enabled then
+		enableBody()
+		conn = RunService.RenderStepped:Connect(function()
+			if not validTarget(lockedTarget) then
+				lockedTarget = findTarget()
+			end
+			if not lockedTarget then return end
+
+			local my = hrp()
+			local dir = lockedTarget.Position - my.Position
+			local flat = Vector3.new(dir.X,0,dir.Z)
+
+			gyro.CFrame = CFrame.lookAt(my.Position, lockedTarget.Position)
+
+			if flat.Magnitude > 1.8 then
+				vel.Velocity = flat.Unit * 42
+			else
+				vel.Velocity = Vector3.zero
+			end
+
+			for _,tool in ipairs(char():GetChildren()) do
+				if tool:IsA("Tool") then
+					tool:Activate()
+				end
+			end
+		end)
+	else
+		if conn then conn:Disconnect() end
+		conn=nil
+		lockedTarget=nil
+		disableBody()
+	end
+end)
+
+-- ===== MINIMIZE =====
+local minimized = false
+minBtn.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	if minimized then
+		frame.Size = UDim2.new(0,210,0,25)
+		btn.Visible = false
+		credit.Visible = false
+	else
+		frame.Size = UDim2.new(0,210,0,95)
+		btn.Visible = true
+		credit.Visible = true
+	end
+end)
+
+-- ===== CLOSE =====
+closeBtn.MouseButton1Click:Connect(function()
+	if conn then conn:Disconnect() end
+	disableBody()
+	gui:Destroy()
+end)
