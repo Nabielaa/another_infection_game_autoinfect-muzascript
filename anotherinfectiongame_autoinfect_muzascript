@@ -3,79 +3,147 @@
 
 repeat task.wait() until game:IsLoaded()
 
+-- ================= MAP LOCK =================
+local TARGET_PLACE_ID = 134922313437159
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
+local TeleportService = game:GetService("TeleportService")
 
 local player = Players.LocalPlayer
+
+if game.PlaceId ~= TARGET_PLACE_ID then
+    local parentGui = (gethui and gethui()) or player:WaitForChild("PlayerGui")
+
+    local lockGui = Instance.new("ScreenGui", parentGui)
+    lockGui.Name = "muzascript_maplock"
+
+    local bg = Instance.new("Frame", lockGui)
+    bg.Size = UDim2.new(1,0,1,0)
+    bg.BackgroundColor3 = Color3.new(0,0,0)
+    bg.BackgroundTransparency = 0.4
+
+    local box = Instance.new("Frame", bg)
+    box.Size = UDim2.new(0,360,0,160)
+    box.Position = UDim2.new(0.5,-180,0.5,-80)
+    box.BackgroundColor3 = Color3.fromRGB(25,25,25)
+    box.BorderSizePixel = 0
+
+    local title = Instance.new("TextLabel", box)
+    title.Size = UDim2.new(1,0,0,40)
+    title.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    title.Text = "muzascript ❌"
+    title.TextColor3 = Color3.new(1,1,1)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 16
+
+    local desc = Instance.new("TextLabel", box)
+    desc.Position = UDim2.new(0,15,0,50)
+    desc.Size = UDim2.new(1,-30,0,50)
+    desc.BackgroundTransparency = 1
+    desc.TextWrapped = true
+    desc.Text = "Script ini hanya untuk map ini.\nPindah ke map yang benar?"
+    desc.TextColor3 = Color3.fromRGB(220,220,220)
+    desc.Font = Enum.Font.Gotham
+    desc.TextSize = 14
+
+    local yes = Instance.new("TextButton", box)
+    yes.Size = UDim2.new(0.4,0,0,32)
+    yes.Position = UDim2.new(0.08,0,1,-42)
+    yes.Text = "YES"
+    yes.BackgroundColor3 = Color3.fromRGB(50,120,60)
+    yes.TextColor3 = Color3.new(1,1,1)
+    yes.Font = Enum.Font.GothamBold
+
+    local no = Instance.new("TextButton", box)
+    no.Size = UDim2.new(0.4,0,0,32)
+    no.Position = UDim2.new(0.52,0,1,-42)
+    no.Text = "NO"
+    no.BackgroundColor3 = Color3.fromRGB(90,40,40)
+    no.TextColor3 = Color3.new(1,1,1)
+    no.Font = Enum.Font.GothamBold
+
+    yes.MouseButton1Click:Connect(function()
+        TeleportService:Teleport(TARGET_PLACE_ID)
+    end)
+
+    no.MouseButton1Click:Connect(function()
+        lockGui:Destroy()
+    end)
+
+    return
+end
+
+-- ================= NOTIFICATION =================
+pcall(function()
+    StarterGui:SetCore("SendNotification",{
+        Title = "muzascript",
+        Text = "Auto Infect Final Pro Loaded\nmade by muzascript",
+        Duration = 4
+    })
+end)
+
+-- ================= STATE =================
 local enabled = false
 local conn
 local lockedTarget
 
--- ===== NOTIFICATION =====
-pcall(function()
-	StarterGui:SetCore("SendNotification",{
-		Title = "muzascript",
-		Text = "Auto Infect Final Pro Loaded\nmade by muzascript",
-		Duration = 4
-	})
-end)
-
--- ===== CHARACTER =====
+-- ================= CHARACTER =================
 local function char()
-	return player.Character or player.CharacterAdded:Wait()
+    return player.Character or player.CharacterAdded:Wait()
 end
 
 local function hrp()
-	return char():WaitForChild("HumanoidRootPart")
+    return char():WaitForChild("HumanoidRootPart")
 end
 
--- ===== TARGET SYSTEM =====
+-- ================= TARGET SYSTEM =================
 local function validTarget(t)
-	if not t or not t.Parent then return false end
-	local p = Players:GetPlayerFromCharacter(t.Parent)
-	if not p then return false end
-	if p.Team == player.Team then return false end
-	return (hrp().Position - t.Position).Magnitude < 80
+    if not t or not t.Parent then return false end
+    local p = Players:GetPlayerFromCharacter(t.Parent)
+    if not p or p == player then return false end
+    if p.Team == player.Team then return false end
+    return (hrp().Position - t.Position).Magnitude < 80
 end
 
 local function findTarget()
-	local my = hrp()
-	local best,dist = nil,math.huge
-	for _,plr in ipairs(Players:GetPlayers()) do
-		if plr ~= player
-		and plr.Team ~= player.Team
-		and plr.Character
-		and plr.Character:FindFirstChild("HumanoidRootPart") then
-			local t = plr.Character.HumanoidRootPart
-			local d = (my.Position - t.Position).Magnitude
-			if d < dist then
-				dist = d
-				best = t
-			end
-		end
-	end
-	return best
+    local my = hrp()
+    local best,dist = nil,math.huge
+    for _,plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player
+        and plr.Team ~= player.Team
+        and plr.Character
+        and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local t = plr.Character.HumanoidRootPart
+            local d = (my.Position - t.Position).Magnitude
+            if d < dist then
+                dist = d
+                best = t
+            end
+        end
+    end
+    return best
 end
 
--- ===== BODY CONTROL =====
+-- ================= BODY CONTROL =================
 local gyro,vel
 local function enableBody()
-	gyro = Instance.new("BodyGyro", hrp())
-	gyro.MaxTorque = Vector3.new(0,9e9,0)
-	gyro.P = 6000
+    gyro = Instance.new("BodyGyro", hrp())
+    gyro.MaxTorque = Vector3.new(0,9e9,0)
+    gyro.P = 6000
 
-	vel = Instance.new("BodyVelocity", hrp())
-	vel.MaxForce = Vector3.new(9e9,0,9e9)
+    vel = Instance.new("BodyVelocity", hrp())
+    vel.MaxForce = Vector3.new(9e9,0,9e9)
 end
 
 local function disableBody()
-	if gyro then gyro:Destroy() end
-	if vel then vel:Destroy() end
-	gyro,vel=nil,nil
+    if gyro then gyro:Destroy() end
+    if vel then vel:Destroy() end
+    gyro,vel=nil,nil
 end
 
--- ===== GUI =====
+-- ================= GUI =================
 local gui = Instance.new("ScreenGui", game.CoreGui)
 gui.Name = "muzascript_autoinfect"
 
@@ -87,11 +155,9 @@ frame.Active = true
 frame.Draggable = true
 frame.BorderSizePixel = 0
 
--- TITLE BAR
 local titleBar = Instance.new("Frame", frame)
 titleBar.Size = UDim2.new(1,0,0,25)
 titleBar.BackgroundColor3 = Color3.fromRGB(35,35,35)
-titleBar.BorderSizePixel = 0
 
 local title = Instance.new("TextLabel", titleBar)
 title.Size = UDim2.new(1,-50,1,0)
@@ -100,25 +166,19 @@ title.TextColor3 = Color3.new(1,1,1)
 title.TextScaled = true
 title.BackgroundTransparency = 1
 
--- MINIMIZE
 local minBtn = Instance.new("TextButton", titleBar)
 minBtn.Size = UDim2.new(0,25,1,0)
 minBtn.Position = UDim2.new(1,-50,0,0)
 minBtn.Text = "_"
 minBtn.TextScaled = true
-minBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-minBtn.TextColor3 = Color3.new(1,1,1)
 
--- CLOSE
 local closeBtn = Instance.new("TextButton", titleBar)
 closeBtn.Size = UDim2.new(0,25,1,0)
 closeBtn.Position = UDim2.new(1,-25,0,0)
 closeBtn.Text = "X"
 closeBtn.TextScaled = true
 closeBtn.BackgroundColor3 = Color3.fromRGB(120,0,0)
-closeBtn.TextColor3 = Color3.new(1,1,1)
 
--- BUTTON
 local btn = Instance.new("TextButton", frame)
 btn.Size = UDim2.new(1,-10,0,32)
 btn.Position = UDim2.new(0,5,0,30)
@@ -127,7 +187,6 @@ btn.TextScaled = true
 btn.BackgroundColor3 = Color3.fromRGB(55,55,55)
 btn.TextColor3 = Color3.new(1,1,1)
 
--- CREDIT (MENYATU & JELAS)
 local credit = Instance.new("TextLabel", frame)
 credit.Size = UDim2.new(1,0,0,20)
 credit.Position = UDim2.new(0,0,1,-20)
@@ -136,63 +195,53 @@ credit.TextColor3 = Color3.fromRGB(0,255,120)
 credit.TextScaled = true
 credit.BackgroundTransparency = 1
 
--- ===== CORE =====
+-- ================= CORE =================
 btn.MouseButton1Click:Connect(function()
-	enabled = not enabled
-	btn.Text = enabled and "👁️ ON" or "👁️ OFF"
+    enabled = not enabled
+    btn.Text = enabled and "👁️ ON" or "👁️ OFF"
 
-	if enabled then
-		enableBody()
-		conn = RunService.RenderStepped:Connect(function()
-			if not validTarget(lockedTarget) then
-				lockedTarget = findTarget()
-			end
-			if not lockedTarget then return end
+    if enabled then
+        enableBody()
+        conn = RunService.RenderStepped:Connect(function()
+            if not validTarget(lockedTarget) then
+                lockedTarget = findTarget()
+            end
+            if not lockedTarget then return end
 
-			local my = hrp()
-			local dir = lockedTarget.Position - my.Position
-			local flat = Vector3.new(dir.X,0,dir.Z)
+            local my = hrp()
+            local dir = lockedTarget.Position - my.Position
+            local flat = Vector3.new(dir.X,0,dir.Z)
 
-			gyro.CFrame = CFrame.lookAt(my.Position, lockedTarget.Position)
+            gyro.CFrame = CFrame.lookAt(my.Position, lockedTarget.Position)
 
-			if flat.Magnitude > 1.8 then
-				vel.Velocity = flat.Unit * 42
-			else
-				vel.Velocity = Vector3.zero
-			end
+            vel.Velocity = flat.Magnitude > 1.8 and flat.Unit * 42 or Vector3.zero
 
-			for _,tool in ipairs(char():GetChildren()) do
-				if tool:IsA("Tool") then
-					tool:Activate()
-				end
-			end
-		end)
-	else
-		if conn then conn:Disconnect() end
-		conn=nil
-		lockedTarget=nil
-		disableBody()
-	end
+            for _,tool in ipairs(char():GetChildren()) do
+                if tool:IsA("Tool") then
+                    tool:Activate()
+                end
+            end
+        end)
+    else
+        if conn then conn:Disconnect() end
+        conn=nil
+        lockedTarget=nil
+        disableBody()
+    end
 end)
 
--- ===== MINIMIZE =====
-local minimized = false
+-- ================= MINIMIZE =================
+local minimized=false
 minBtn.MouseButton1Click:Connect(function()
-	minimized = not minimized
-	if minimized then
-		frame.Size = UDim2.new(0,210,0,25)
-		btn.Visible = false
-		credit.Visible = false
-	else
-		frame.Size = UDim2.new(0,210,0,95)
-		btn.Visible = true
-		credit.Visible = true
-	end
+    minimized = not minimized
+    frame.Size = minimized and UDim2.new(0,210,0,25) or UDim2.new(0,210,0,95)
+    btn.Visible = not minimized
+    credit.Visible = not minimized
 end)
 
--- ===== CLOSE =====
+-- ================= CLOSE =================
 closeBtn.MouseButton1Click:Connect(function()
-	if conn then conn:Disconnect() end
-	disableBody()
-	gui:Destroy()
+    if conn then conn:Disconnect() end
+    disableBody()
+    gui:Destroy()
 end)
